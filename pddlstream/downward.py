@@ -10,14 +10,14 @@ from pddlstream.conversion import is_atom, is_negated_atom, objects_from_evaluat
     pddl_list_from_expression, get_prefix, get_args, obj_from_pddl, NOT, EQ
 from pddlstream.utils import read, write, safe_rm_dir, INF, Verbose, TmpCWD, clear_dir, get_file_path
 
-#FD_PATH = os.environ['FD_PATH']
+# FD_PATH = os.environ['FD_PATH']
 FD_PATH = get_file_path(__file__, '../FastDownward/builds/release32/')
 FD_BIN = os.path.join(FD_PATH, 'bin')
 TRANSLATE_PATH = os.path.join(FD_BIN, 'translate')
 
 DOMAIN_INPUT = 'domain.pddl'
 PROBLEM_INPUT = 'problem.pddl'
-TRANSLATE_FLAGS = [] # '--negative-axioms'
+TRANSLATE_FLAGS = []  # '--negative-axioms'
 sys.argv = sys.argv[:1] + TRANSLATE_FLAGS + [DOMAIN_INPUT, PROBLEM_INPUT]
 sys.path.append(TRANSLATE_PATH)
 
@@ -36,10 +36,11 @@ SEARCH_OUTPUT = 'sas_plan'
 SEARCH_COMMAND = 'downward --internal-plan-file %s %s < %s'
 
 # TODO: be careful when doing costs. Might not be admissible if use plus one for heuristic
-# TODO: use goal_serialization / hierarchy on the inside loop of these algorithms
+# TODO: use goal_serialization / hierarchy on the inside loop of these
+# algorithms
 
 OBJECT = 'object'
-TOTAL_COST = 'total-cost' # TotalCost
+TOTAL_COST = 'total-cost'  # TotalCost
 
 SEARCH_OPTIONS = {
     # Optimal
@@ -82,24 +83,29 @@ SEARCH_OPTIONS = {
 }
 
 
-##################################################
+#
 
 def parse_lisp(lisp):
     return pddl_parser.lisp_parser.parse_nested_list(lisp.splitlines())
 
-Domain = namedtuple('Domain', ['name', 'requirements', 'types', 'type_dict', 'constants',
-                               'predicates', 'predicate_dict', 'functions', 'actions', 'axioms'])
+Domain = namedtuple(
+    'Domain', ['name', 'requirements', 'types', 'type_dict', 'constants',
+               'predicates', 'predicate_dict', 'functions', 'actions', 'axioms'])
+
 
 def parse_domain(domain_pddl):
     return Domain(*parse_domain_pddl(parse_lisp(domain_pddl)))
 
-Problem = namedtuple('Problem', ['task_name', 'task_domain_name', 'task_requirements', 'objects', 'init',
-                               'goal', 'use_metric'])
+Problem = namedtuple(
+    'Problem', ['task_name', 'task_domain_name', 'task_requirements', 'objects', 'init',
+                'goal', 'use_metric'])
+
 
 def parse_problem(domain, problem_pddl):
     return Problem(*parse_task_pddl(parse_lisp(problem_pddl), domain.type_dict, domain.predicate_dict))
 
-##################################################
+#
+
 
 def fd_from_fact(fact):
     # TODO: convert to evaluation?
@@ -110,15 +116,18 @@ def fd_from_fact(fact):
         _, head, value = fact
         predicate = get_prefix(head)
         args = map(pddl_from_object, get_args(head))
-        fluent = pddl.f_expression.PrimitiveNumericExpression(symbol=predicate, args=args)
+        fluent = pddl.f_expression.PrimitiveNumericExpression(
+            symbol=predicate, args=args)
         expression = pddl.f_expression.NumericConstant(value)
         return pddl.f_expression.Assign(fluent, expression)
     args = map(pddl_from_object, get_args(fact))
     return pddl.Atom(prefix, args)
 
+
 def fact_from_fd(fd):
     assert(not fd.negated)
     return (fd.predicate,) + tuple(map(obj_from_pddl, fd.args))
+
 
 def get_init(init_evaluations, negated=False):
     # TODO: this doesn't include =
@@ -131,18 +140,23 @@ def get_init(init_evaluations, negated=False):
         elif negated and is_negated_atom(evaluation):
             init.append(pddl.NegatedAtom(name, args))
         else:
-            fluent = pddl.f_expression.PrimitiveNumericExpression(symbol=name, args=args)
-            expression = pddl.f_expression.NumericConstant(evaluation.value)  # Integer
+            fluent = pddl.f_expression.PrimitiveNumericExpression(
+                symbol=name, args=args)
+            expression = pddl.f_expression.NumericConstant(
+                evaluation.value)  # Integer
             init.append(pddl.f_expression.Assign(fluent, expression))
     return init
 
+
 def get_problem(init_evaluations, goal_expression, domain, unit_costs):
     objects = map(pddl_from_object, objects_from_evaluations(init_evaluations))
-    typed_objects = list({pddl.TypedObject(obj, OBJECT) for obj in objects} - set(domain.constants))
+    typed_objects = list({pddl.TypedObject(obj, OBJECT)
+                         for obj in objects} - set(domain.constants))
     init = get_init(init_evaluations)
     goal = parse_condition(pddl_list_from_expression(goal_expression),
                            domain.type_dict, domain.predicate_dict)
-    return Problem(task_name=domain.name, task_domain_name=domain.name, objects=typed_objects,
+    return Problem(
+        task_name=domain.name, task_domain_name=domain.name, objects=typed_objects,
                    task_requirements=pddl.tasks.Requirements([]), init=init, goal=goal, use_metric=not unit_costs)
 
 
@@ -156,8 +170,8 @@ def task_from_domain_problem(domain, problem):
                                                 task_requirements.requirements)))
     objects = constants + objects
     check_for_duplicates([o.name for o in objects],
-        errmsg="error: duplicate object %r",
-        finalmsg="please check :constants and :objects definitions")
+                         errmsg="error: duplicate object %r",
+                         finalmsg="please check :constants and :objects definitions")
     init += [pddl.Atom("=", (obj.name, obj.name)) for obj in objects]
 
     task = pddl.Task(domain_name, task_name, requirements, types, objects,
@@ -165,7 +179,8 @@ def task_from_domain_problem(domain, problem):
     normalize.normalize(task)
     return task
 
-##################################################
+#
+
 
 def get_literals(condition):
     import pddl
@@ -178,11 +193,11 @@ def get_literals(condition):
         return literals
     raise ValueError(condition)
 
-##################################################
+#
 
 # def translate_paths(domain_path, problem_path):
-#     #pddl_parser.parse_pddl_file('domain', domain_path)
-#     #pddl_parser.parse_pddl_file('task', problem_path)
+# pddl_parser.parse_pddl_file('domain', domain_path)
+# pddl_parser.parse_pddl_file('task', problem_path)
 #     task = pddl_parser.open(
 #         domain_filename=domain_path, task_filename=problem_path)
 #     normalize.normalize(task)
@@ -196,19 +211,22 @@ def get_literals(condition):
 #             translate.main()
 #         print('Translate runtime:', time() - t0)
 
+
 def translate_and_write_task(task, temp_dir):
-    #sas_task = pddl_to_sas(instantiate_task(task))
+    # sas_task = pddl_to_sas(instantiate_task(task))
     normalize.normalize(task)
     sas_task = translate.pddl_to_sas(task)
-    #try:
+    # try:
     #    sas_task = translate.pddl_to_sas(task)
-    #except AssertionError:
-    #    raise AssertionError('A function is not defined for some grounding of an action')
+    # except AssertionError:
+    # raise AssertionError('A function is not defined for some grounding of an
+    # action')
     translate.dump_statistics(sas_task)
     clear_dir(temp_dir)
     with open(os.path.join(temp_dir, TRANSLATE_OUTPUT), "w") as output_file:
         sas_task.output(output_file)
     return sas_task
+
 
 def translate_and_write_pddl(domain_pddl, problem_pddl, temp_dir, verbose):
     domain = parse_domain(domain_pddl)
@@ -217,7 +235,8 @@ def translate_and_write_pddl(domain_pddl, problem_pddl, temp_dir, verbose):
     with Verbose(verbose):
         translate_and_write_task(task, temp_dir)
 
-##################################################
+#
+
 
 def run_search(temp_dir, planner='max-astar', max_time=INF, max_cost=INF, debug=False):
     if max_time == INF:
@@ -230,9 +249,10 @@ def run_search(temp_dir, planner='max-astar', max_time=INF, max_cost=INF, debug=
         max_cost = int(max_cost)
 
     t0 = time()
-    search = os.path.join(FD_BIN, SEARCH_COMMAND)
+    search = os.path.join("\"%s\"" % FD_BIN, SEARCH_COMMAND)
     planner_config = SEARCH_OPTIONS[planner] % (max_time, max_cost)
-    command = search % (temp_dir + SEARCH_OUTPUT, planner_config, temp_dir + TRANSLATE_OUTPUT)
+    command = search % (temp_dir + SEARCH_OUTPUT,
+                        planner_config, temp_dir + TRANSLATE_OUTPUT)
     if debug:
         print('\nSearch command:', command)
     p = os.popen(command)  # NOTE - cannot pipe input easily with subprocess
@@ -245,10 +265,10 @@ def run_search(temp_dir, planner='max-astar', max_time=INF, max_cost=INF, debug=
     return read(temp_dir + SEARCH_OUTPUT)
 
 
-##################################################
+#
 
 def parse_solution(solution):
-    #action_regex = r'\((\w+(\s+\w+)\)' # TODO: regex
+    # action_regex = r'\((\w+(\s+\w+)\)' # TODO: regex
     cost = INF
     if solution is None:
         return None, cost
@@ -256,7 +276,8 @@ def parse_solution(solution):
     matches = re.findall(cost_regex, solution)
     if matches:
         cost = int(matches[0])
-    lines = solution.split('\n')[:-2]  # Last line is newline, second to last is cost
+    lines = solution.split('\n')[
+        :-2]  # Last line is newline, second to last is cost
     plan = []
     for line in lines:
         entries = line.strip('( )').split(' ')
@@ -274,12 +295,13 @@ def write_pddl(domain_pddl=None, problem_pddl=None, temp_dir=TEMP_DIR):
         write(problem_path, problem_pddl)
     return domain_path, problem_path
 
-##################################################
+#
+
 
 def solve_from_pddl(domain_pddl, problem_pddl, temp_dir=TEMP_DIR, clean=False, debug=False, **kwargs):
     start_time = time()
     write_pddl(domain_pddl, problem_pddl, temp_dir)
-    #run_translate(temp_dir, verbose)
+    # run_translate(temp_dir, verbose)
     translate_and_write_pddl(domain_pddl, problem_pddl, temp_dir, debug)
     solution = run_search(temp_dir, debug=debug, **kwargs)
     if clean:
@@ -287,6 +309,7 @@ def solve_from_pddl(domain_pddl, problem_pddl, temp_dir=TEMP_DIR, clean=False, d
     if debug:
         print('Total runtime:', time() - start_time)
     return parse_solution(solution)
+
 
 def solve_from_task(task, temp_dir=TEMP_DIR, clean=False, debug=False, **kwargs):
     start_time = time()
@@ -298,10 +321,12 @@ def solve_from_task(task, temp_dir=TEMP_DIR, clean=False, debug=False, **kwargs)
         print('Total runtime:', time() - start_time)
     return parse_solution(solution)
 
-##################################################
+#
+
 
 def conditions_hold(state, conditions):
     return all((cond in state) != cond.negated for cond in conditions)
+
 
 def is_applicable(state, action):
     if isinstance(action, pddl.PropositionalAction):
@@ -309,6 +334,7 @@ def is_applicable(state, action):
     elif isinstance(action, pddl.PropositionalAxiom):
         return conditions_hold(state, action.condition)
     raise ValueError(action)
+
 
 def apply_action(state, action):
     assert(isinstance(action, pddl.PropositionalAction))
@@ -319,15 +345,17 @@ def apply_action(state, action):
         if conditions_hold(state, conditions):
             state.add(effect)
 
+
 def apply_axiom(state, axiom):
     assert(isinstance(state, pddl.PropositionalAxiom))
     state.add(axiom.effect)
 
-#def apply_lifted_action(state, action):
+# def apply_lifted_action(state, action):
 #    assert(isinstance(state, pddl.Action))
 #    assert(not action.parameters)
 #    for effect in state.effects:
 #        assert(not effect.parameters)
+
 
 def plan_cost(plan):
     cost = 0
@@ -335,7 +363,7 @@ def plan_cost(plan):
         cost += action.cost
     return cost
 
-##################################################
+#
 
 # import axiom_rules
 # import instantiate
@@ -345,18 +373,18 @@ def plan_cost(plan):
 # import simplify
 # import variable_order
 
-#GroundTask = namedtuple('GroundTask', ['task', 'atoms', 'actions', 'reachable_action_params', 'original_axioms',
+# GroundTask = namedtuple('GroundTask', ['task', 'atoms', 'actions', 'reachable_action_params', 'original_axioms',
 #                                       'axioms', 'axiom_init', 'axiom_layer_dict', 'goal_list'])
 #
 # def instantiate_task(task, simplify_axioms=False):
-#     # TODO: map parameters to actions and then select which list of atomic supports it
+# TODO: map parameters to actions and then select which list of atomic supports it
 #     normalize.normalize(task)
 #     relaxed_reachable, atoms, actions, original_axioms, reachable_action_params = instantiate.explore(task)
 #     if not relaxed_reachable:
 #        return None
-#     #goal_list = get_literals(task.goal)
+# goal_list = get_literals(task.goal)
 #     goal_list = task.goal.parts if isinstance(task.goal, pddl.Conjunction) else [task.goal]
-#     # TODO: this removes the axioms for some reason
+# TODO: this removes the axioms for some reason
 #     if simplify_axioms:
 #         axioms, axiom_init, axiom_layer_dict = axiom_rules.handle_axioms(actions, original_axioms, goal_list)
 #     else:
