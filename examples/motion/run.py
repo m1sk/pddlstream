@@ -12,8 +12,10 @@ from pddlstream.incremental import solve_incremental
 from pddlstream.utils import read, print_solution, user_input
 from pddlstream.stream import from_test, from_gen_fn
 
+
 def scale_distance(distance):
     return int(np.ceil(1000 * distance))
+
 
 def create_problem(goal, obstacles=(), regions={}, max_distance=.5):
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -35,6 +37,7 @@ def create_problem(goal, obstacles=(), regions={}, max_distance=.5):
 
     np.set_printoptions(precision=3)
     samples = []
+
     def region_gen(region):
         while True:
             q = sample_box(regions[region])
@@ -42,18 +45,19 @@ def create_problem(goal, obstacles=(), regions={}, max_distance=.5):
             yield (q,)
 
     # http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.419.5503&rep=rep1&type=pdf
-    #d = 2
-    #vol_free = (1 - 0) * (1 - 0)
-    #vol_ball = math.pi * (1 ** 2)
-    #gamma = 2 * ((1 + 1. / d) * (vol_free / vol_ball)) ** (1. / d)
+    # d = 2
+    # vol_free = (1 - 0) * (1 - 0)
+    # vol_ball = math.pi * (1 ** 2)
+    # gamma = 2 * ((1 + 1. / d) * (vol_free / vol_ball)) ** (1. / d)
 
     roadmap = []
+
     def connected_test(q1, q2):
-        #n = len(samples)
-        #threshold = gamma * (math.log(n) / n) ** (1. / d)
+        # n = len(samples)
+        # threshold = gamma * (math.log(n) / n) ** (1. / d)
         threshold = max_distance
         are_connected = (get_distance(q1, q2) <= threshold) and \
-                is_collision_free((q1, q2), obstacles)
+            is_collision_free((q1, q2), obstacles)
         if are_connected:
             roadmap.append((q1, q2))
         return are_connected
@@ -72,7 +76,7 @@ def create_problem(goal, obstacles=(), regions={}, max_distance=.5):
     return problem, roadmap
 
 
-##################################################
+#
 
 # TODO - algorithms that take advantage of metric space (RRT)
 
@@ -89,16 +93,17 @@ def main(max_time=20):
         #'goal': create_box((.8, .8), (.4, .4)),
     }
 
-    goal = np.array([1, 1])
-    #goal = 'goal'
+    goal = np.array([.65, .65])
+    # goal = 'goal'
 
-    max_distance = 0.25 # 0.2 | 0.25 | 0.5 | 1.0
-    problem, roadmap = create_problem(goal, obstacles, regions, max_distance=max_distance)
+    max_distance = 0.25  # 0.2 | 0.25 | 0.5 | 1.0
+    problem, roadmap = create_problem(
+        goal, obstacles, regions, max_distance=max_distance)
 
     pr = cProfile.Profile()
     pr.enable()
     solution = solve_incremental(problem, unit_costs=False, max_cost=0,
-        max_time=max_time, verbose=False)
+                                 max_time=max_time, verbose=False)
     pr.disable()
     pstats.Stats(pr).sort_stats('tottime').print_stats(10)
 
@@ -110,7 +115,7 @@ def main(max_time=20):
         return
 
     # TODO: use the same viewer here
-    draw_roadmap(roadmap, obstacles, regions) # TODO: do this in realtime
+    draw_roadmap(roadmap, obstacles, regions)  # TODO: do this in realtime
     user_input('Continue?')
 
     segments = [args for name, args in plan]

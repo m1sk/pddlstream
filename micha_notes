@@ -1,0 +1,18 @@
+maze - compare runtime:
+* single steps
+* action post processing (combine many move-east into move-far-east)
+* far-directional movement
+* streams to handle infinite domains
+try different problem: various length corridors, actual maze, a large grid
+
+
+
+scanning 
+* what happens in this case:  
+(adl to support forall)
+    (:action scan-all 
+        :param (?s)
+        :preconditions (controlled ?s)
+        :effects (forall (?b) (when (connected ?b ?s)) (scanned ?b)))
+
+imposing an order on an parallel task

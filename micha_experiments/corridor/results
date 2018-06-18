@@ -1,0 +1,11 @@
+corridor with 1000 tiles:
+    simple done at 0.53 seconds
+    derived done at 252.91 seconds
+conclusion: using derived is very expensive
+
+streams:
+    incremental stream done at 0.62 seconds
+    focused stream done at 67.56 seconds
+also the move far-east action is never choosen
+it seems that the incremental just calls the planner and is happy with the result
+but focused does try to do some other thing 
